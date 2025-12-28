@@ -46,15 +46,18 @@ interface ServisListProps {
 }
 
 // Durum renk mapping
-const durumRenkleri: Record<number, string> = {
-  1: 'bg-blue-100 text-blue-800 border-blue-200',      // Teslim Alındı
-  2: 'bg-yellow-100 text-yellow-800 border-yellow-200', // Onay Bekliyor
-  3: 'bg-green-100 text-green-800 border-green-200',    // Onay Verildi
-  4: 'bg-purple-100 text-purple-800 border-purple-200', // İşlemde
-  5: 'bg-teal-100 text-teal-800 border-teal-200',       // Tamamlandı
-  6: 'bg-indigo-100 text-indigo-800 border-indigo-200', // Kargoya Teslim
-  7: 'bg-red-100 text-red-800 border-red-200',          // İptal
-}
+const getDurumColor = (durumId: number) => {
+    switch (durumId) {
+      case 1: return 'bg-blue-100 text-blue-800'      // Teslim Alındı
+      case 2: return 'bg-yellow-100 text-yellow-800'  // Onay Bekliyor
+      case 3: return 'bg-green-100 text-green-800'    // Onay Verildi
+      case 4: return 'bg-purple-100 text-purple-800'  // İşlemde
+      case 5: return 'bg-teal-100 text-teal-800'      // Tamamlandı
+      case 6: return 'bg-indigo-100 text-indigo-800'  // Kargoya Teslim Edildi
+      case 7: return 'bg-red-100 text-red-800'        // İptal
+      default: return 'bg-gray-100 text-gray-800'
+    }
+  }
 
 export function ServisList({ servisler }: ServisListProps) {
   const [searchQuery, setSearchQuery] = useState('')
@@ -243,7 +246,7 @@ export function ServisList({ servisler }: ServisListProps) {
                         <td className="px-4 py-4 text-center">
                           <Badge 
                             variant="outline" 
-                            className={durumRenkleri[servis.durum_id] || ''}
+                             className={getDurumColor(servis.durum_id)}
                           >
                             {servis.durum?.durum_adi}
                           </Badge>
@@ -283,7 +286,7 @@ export function ServisList({ servisler }: ServisListProps) {
                         </div>
                         <Badge 
                           variant="outline" 
-                          className={durumRenkleri[servis.durum_id] || ''}
+                          className={getDurumColor(servis.durum_id)}
                         >
                           {servis.durum?.durum_adi}
                         </Badge>

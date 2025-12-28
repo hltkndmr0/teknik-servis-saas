@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import { DurumDegistirDialogWrapper } from '@/components/servis/durum-degistir-dialog' // ✅ Import
 import { 
   Calendar, 
   Clock, 
@@ -36,13 +37,13 @@ export function ServisDetay({ servis }: ServisDetayProps) {
 
   const getDurumColor = (durumId: number) => {
     switch (durumId) {
-      case 1: return 'bg-blue-100 text-blue-800'
-      case 2: return 'bg-yellow-100 text-yellow-800'
-      case 3: return 'bg-purple-100 text-purple-800'
-      case 4: return 'bg-orange-100 text-orange-800'
-      case 5: return 'bg-green-100 text-green-800'
-      case 6: return 'bg-gray-100 text-gray-800'
-      case 7: return 'bg-red-100 text-red-800'
+      case 1: return 'bg-blue-100 text-blue-800'      // Teslim Alındı
+      case 2: return 'bg-yellow-100 text-yellow-800'  // Onay Bekliyor
+      case 3: return 'bg-green-100 text-green-800'    // Onay Verildi
+      case 4: return 'bg-purple-100 text-purple-800'  // İşlemde
+      case 5: return 'bg-teal-100 text-teal-800'      // Tamamlandı
+      case 6: return 'bg-indigo-100 text-indigo-800'  // Kargoya Teslim Edildi
+      case 7: return 'bg-red-100 text-red-800'        // İptal
       default: return 'bg-gray-100 text-gray-800'
     }
   }
@@ -62,7 +63,6 @@ export function ServisDetay({ servis }: ServisDetayProps) {
     const supabase = createClient()
 
     try {
-      // Durum 6 = Kargoya Verildi
       const { error: durumError } = await supabase
         .from('tb_teknik_servis')
         .update({ durum_id: 6 })
@@ -70,7 +70,6 @@ export function ServisDetay({ servis }: ServisDetayProps) {
 
       if (durumError) throw durumError
 
-      // Geçmiş kaydı
       await supabase
         .from('tb_servis_gecmis')
         .insert({
@@ -168,6 +167,9 @@ export function ServisDetay({ servis }: ServisDetayProps) {
           <CardTitle>Hızlı İşlemler</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {/* ✅ Durum Değiştir - İLK SIRADA */}
+          <DurumDegistirDialogWrapper servis={servis} />
+
           <Link href={`/servisler/${servis.id}/duzenle`}>
             <Button variant="outline" className="w-full justify-start gap-2">
               <Edit className="h-4 w-4" />

@@ -80,13 +80,13 @@ export default async function DashboardPage() {
 
   // Durum renkleri
   const durumRenkleri: Record<number, string> = {
-    1: 'bg-blue-100 text-blue-800',
-    2: 'bg-yellow-100 text-yellow-800',
-    3: 'bg-green-100 text-green-800',
-    4: 'bg-purple-100 text-purple-800',
-    5: 'bg-teal-100 text-teal-800',
-    6: 'bg-indigo-100 text-indigo-800',
-    7: 'bg-red-100 text-red-800',
+    1: 'bg-blue-100 text-blue-800',      // Teslim Alındı
+    2: 'bg-yellow-100 text-yellow-800',  // Onay Bekliyor
+    3: 'bg-green-100 text-green-800',    // Onay Verildi
+    4: 'bg-purple-100 text-purple-800',  // İşlemde
+    5: 'bg-teal-100 text-teal-800',      // Tamamlandı
+    6: 'bg-indigo-100 text-indigo-800',  // Kargoya Teslim Edildi
+    7: 'bg-red-100 text-red-800',        // İptal
   }
 
   return (

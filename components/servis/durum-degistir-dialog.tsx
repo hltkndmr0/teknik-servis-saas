@@ -6,12 +6,12 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
@@ -19,9 +19,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
+import { Textarea } from '@/components/ui/textarea'
 import { createClient } from '@/lib/supabase/client'
-import { Loader2, ArrowRight } from 'lucide-react'
+import { Loader2, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface DurumDegistirDialogProps {
@@ -30,221 +30,160 @@ interface DurumDegistirDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-const durumlar = [
-  { id: 1, adi: 'Teslim Alındı', renk: 'bg-blue-100 text-blue-800' },
-  { id: 2, adi: 'Onay Bekliyor', renk: 'bg-yellow-100 text-yellow-800' },
-  { id: 3, adi: 'Onay Verildi', renk: 'bg-green-100 text-green-800' },
-  { id: 4, adi: 'İşlemde', renk: 'bg-purple-100 text-purple-800' },
-  { id: 5, adi: 'Tamamlandı', renk: 'bg-teal-100 text-teal-800' },
-  { id: 6, adi: 'Kargoya Teslim Edildi', renk: 'bg-indigo-100 text-indigo-800' },
-  { id: 7, adi: 'İptal', renk: 'bg-red-100 text-red-800' },
+const DURUMLAR = [
+  { id: 1, ad: 'Teslim Alındı' },
+  { id: 2, ad: 'Onay Bekliyor' },
+  { id: 3, ad: 'Onay Verildi' },
+  { id: 4, ad: 'İşlemde' },
+  { id: 5, ad: 'Tamamlandı' },
+  { id: 6, ad: 'Kargoya Teslim Edildi' },
+  { id: 7, ad: 'İptal' },
 ]
-
-// İş akışı kuralları
-const izinVerilenGecisler: Record<number, number[]> = {
-  1: [2, 4, 7],      // Teslim Alındı → Onay Bekliyor, İşlemde, İptal
-  2: [3, 7],         // Onay Bekliyor → Onay Verildi, İptal
-  3: [4, 7],         // Onay Verildi → İşlemde, İptal
-  4: [5, 7],         // İşlemde → Tamamlandı, İptal
-  5: [6],            // Tamamlandı → Kargoya Teslim
-  6: [],             // Kargoya Teslim → Son durum
-  7: [],             // İptal → Son durum
-}
 
 export function DurumDegistirDialog({ servis, open, onOpenChange }: DurumDegistirDialogProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
-  const [yeniDurumId, setYeniDurumId] = useState<string>('')
-  const [not, setNot] = useState('')
+  const [yeniDurum, setYeniDurum] = useState<string>('')
+  const [aciklama, setAciklama] = useState('')
 
-  const mevcutDurum = durumlar.find(d => d.id === servis.durum_id)
-  const izinVerilenDurumlar = izinVerilenGecisler[servis.durum_id] || []
-
-const handleSubmit = async (e: React.FormEvent) => {
-
-    if (!yeniDurumId) {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!yeniDurum) {
       toast.error('Lütfen yeni durum seçin')
       return
     }
 
-    if (loading) return // ✅ Zaten işlem varsa çık
+    if (parseInt(yeniDurum) === servis.durum_id) {
+      toast.error('Yeni durum mevcut durumla aynı olamaz')
+      return
+    }
 
     setLoading(true)
     const supabase = createClient()
 
     try {
-      const yeniDurum = parseInt(yeniDurumId)
-
-      // Servisi güncelle
+      // Durumu güncelle
       const { error: updateError } = await supabase
         .from('tb_teknik_servis')
-        .update({ 
-          durum_id: yeniDurum,
-          ...(yeniDurum === 5 && { cikis_tarihi: new Date().toISOString() })
-        })
+        .update({ durum_id: parseInt(yeniDurum) })
         .eq('id', servis.id)
 
       if (updateError) throw updateError
 
-      // Durum geçmişine kaydet
-      const { error: logError } = await supabase
+      // Geçmiş kaydı oluştur
+      const { error: historyError } = await supabase
         .from('tb_servis_gecmis')
         .insert({
           servis_id: servis.id,
           eski_durum_id: servis.durum_id,
-          yeni_durum_id: yeniDurum,
-          aciklama: not || null,
+          yeni_durum_id: parseInt(yeniDurum),
+          aciklama: aciklama || null
         })
 
-      if (logError) throw logError
+      if (historyError) throw historyError
 
-      toast.success('Durum başarıyla değiştirildi!')
-      
-      // Form'u temizle
-      setYeniDurumId('')
-      setNot('')
-      
-      // Dialog'u kapat
+      toast.success('Durum başarıyla güncellendi!')
       onOpenChange(false)
-      
-      // Sayfayı yenile
+      setYeniDurum('')
+      setAciklama('')
       router.refresh()
 
     } catch (error: any) {
-      console.error('Hata:', error)
+      console.error('Durum güncelleme hatası:', error)
       toast.error(error.message || 'Bir hata oluştu')
     } finally {
       setLoading(false)
     }
   }
 
-  if (izinVerilenDurumlar.length === 0) {
-    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent>
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Durum Değiştir</DialogTitle>
             <DialogDescription>
-              Servis son durumda, durum değişikliği yapılamaz.
+              Servis durumunu güncelleyin. Değişiklik geçmişe kaydedilecek.
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
-            <Badge variant="outline" className={mevcutDurum?.renk}>
-              {mevcutDurum?.adi}
-            </Badge>
-          </div>
-        </DialogContent>
-      </Dialog>
-    )
-  }
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Durum Değiştir</DialogTitle>
-          <DialogDescription>
-            Servis durumunu güncelleyin
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Mevcut Durum */}
-          <div className="space-y-2">
-            <Label>Mevcut Durum</Label>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className={mevcutDurum?.renk}>
-                {mevcutDurum?.adi}
-              </Badge>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Mevcut Durum</Label>
+              <div className="text-sm font-medium p-2 bg-muted rounded">
+                {DURUMLAR.find(d => d.id === servis.durum_id)?.ad}
+              </div>
             </div>
-          </div>
 
-          {/* Yeni Durum */}
-          <div className="space-y-2">
-            <Label htmlFor="yeni_durum">Yeni Durum *</Label>
-            <Select value={yeniDurumId} onValueChange={setYeniDurumId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Durum seçin..." />
-              </SelectTrigger>
-              <SelectContent>
-                {durumlar
-                  .filter(d => izinVerilenDurumlar.includes(d.id))
-                  .map((durum) => (
+            <div className="space-y-2">
+              <Label htmlFor="yeni-durum">Yeni Durum *</Label>
+              <Select value={yeniDurum} onValueChange={setYeniDurum} required>
+                <SelectTrigger>
+                  <SelectValue placeholder="Durum seçin" />
+                </SelectTrigger>
+                <SelectContent>
+                  {DURUMLAR.filter(d => d.id !== servis.durum_id).map((durum) => (
                     <SelectItem key={durum.id} value={durum.id.toString()}>
-                      <div className="flex items-center gap-2">
-                        <div className={`px-2 py-0.5 rounded text-xs ${durum.renk}`}>
-                          {durum.adi}
-                        </div>
-                      </div>
+                      {durum.ad}
                     </SelectItem>
                   ))}
-              </SelectContent>
-            </Select>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="aciklama">Açıklama</Label>
+              <Textarea
+                id="aciklama"
+                placeholder="Durum değişikliği hakkında not ekleyin (opsiyonel)"
+                value={aciklama}
+                onChange={(e) => setAciklama(e.target.value)}
+                rows={3}
+              />
+            </div>
           </div>
 
-          {/* Geçiş Görselleştirme */}
-          {yeniDurumId && (
-            <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-              <Badge variant="outline" className={mevcutDurum?.renk}>
-                {mevcutDurum?.adi}
-              </Badge>
-              <ArrowRight className="h-4 w-4 text-muted-foreground" />
-              <Badge variant="outline" className={durumlar.find(d => d.id === parseInt(yeniDurumId))?.renk}>
-                {durumlar.find(d => d.id === parseInt(yeniDurumId))?.adi}
-              </Badge>
-            </div>
-          )}
-
-          {/* Not */}
-          <div className="space-y-2">
-            <Label htmlFor="not">Açıklama / Not</Label>
-            <Textarea
-              id="not"
-              value={not}
-              onChange={(e) => setNot(e.target.value)}
-              placeholder="Durum değişikliği ile ilgili açıklama..."
-              rows={3}
-            />
-          </div>
-
-          {/* Uyarılar */}
-          {yeniDurumId === '5' && (
-            <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800">
-              ℹ️ Servis "Tamamlandı" durumuna alınacak ve çıkış tarihi kaydedilecek.
-            </div>
-          )}
-
-          {yeniDurumId === '7' && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
-              ⚠️ Servis iptal edilecek. Bu işlem geri alınamaz.
-            </div>
-          )}
-
-          {/* Butonlar */}
-          <div className="flex gap-3 justify-end pt-4">
+          <DialogFooter>
             <Button
               type="button"
               variant="outline"
-              onClick={() => {
-                setYeniDurumId('')
-                setNot('')
-                onOpenChange(false)
-              }}
+              onClick={() => onOpenChange(false)}
               disabled={loading}
             >
               İptal
             </Button>
-            <Button 
-              type="button"  // ✅ type="submit" yerine "button"
-              onClick={handleSubmit}  // ✅ onClick ile çağır
-              disabled={loading || !yeniDurumId}
-            >
+            <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Durum Değiştir
+              Güncelle
             </Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
+  )
+}
+
+// ✅ Wrapper component - kendi state'ini yönetir
+export function DurumDegistirDialogWrapper({ servis }: { servis: any }) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <>
+      <Button 
+        variant="outline" 
+        className="w-full justify-start gap-2"
+        onClick={() => setOpen(true)}
+      >
+        <RefreshCw className="h-4 w-4" />
+        Durum Değiştir
+      </Button>
+      
+      <DurumDegistirDialog 
+        servis={servis}
+        open={open}
+        onOpenChange={setOpen}
+      />
+    </>
   )
 }
